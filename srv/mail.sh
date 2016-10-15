@@ -54,12 +54,15 @@ normalize_address() {
   fi
 }
 
-# Checks if the email is surrounded by brackets, contains an "@" character
-# and does not contain any spaces:
-validate_address() {
-  if [ "${2%<*@*>}" = "$2" ] || [ "${2#*,}" != "$2" ] \
-      || [ "${2%@* *>}" != "$2" ] || [ "${2%<* *@*>}" != "$2" ]; then
-    error_exit "Invalid '$1' email address: $2"
+# Does a simple validity check on the email address format,
+# without support for comments or for quoting in the local-part:
+validate_email() {
+  local local_part=${1%%@*>}
+  local_part=$(echo "${local_part#<}" | sed 's/[][[:cntrl:][:space:]"(),:;\]//')
+  local domain=${1##<*@}
+  domain=$(echo "${domain%>}" | LC_CTYPE=UTF-8 sed 's/[^][[:alnum:].:-]//')
+  if [ "<$local_part@$domain>" != "$1" ]; then
+    error_exit "Invalid email address: $1"
   fi
 }
 
@@ -92,15 +95,17 @@ encode_address() {
 parse_recipients() {
   local addresses
   local address
+  local email
   local output
   local recipients
   addresses=$(echo "$TO" | tr ',' '\n')
   IFS="$NEWLINE"
   for address in $addresses; do
     address=$(normalize_address "$address")
-    validate_address to "$address"
+    email="<${address##*<}"
+    validate_email "$email"
     output="$output, $(encode_address "$address")"
-    recipients="$recipients$NEWLINE<${address#*<}"
+    recipients="$recipients$NEWLINE$email"
   done
   unset IFS
   # Remove the first commma and space from the address list:
@@ -110,35 +115,23 @@ parse_recipients() {
 }
 
 parse_sender() {
+  local email
   FROM="$(normalize_address "$FROM")"
-  validate_address from "$FROM"
+  email="<${FROM##*<}"
+  validate_email "$email"
   FROM="$(encode_address "$FROM")"
-  SENDER_HEADER="MAIL FROM: <${FROM#*<}"
+  SENDER_HEADER="MAIL FROM: $email"
 }
 
 while getopts ':h:p:f:t:s:' OPT; do
   case "$OPT" in
-  h)
-    HOST="$OPTARG"
-    ;;
-  p)
-    PORT="$OPTARG"
-    ;;
-  f)
-    FROM="$OPTARG"
-    ;;
-  t)
-    TO="$OPTARG"
-    ;;
-  s)
-    SUBJECT="$OPTARG"
-    ;;
-  \?)
-    error_exit "Invalid option: -$OPTARG" true
-    ;;
-  :)
-    error_exit "Option -$OPTARG requires an argument." true
-    ;;
+    h)  HOST="$OPTARG";;
+    p)  PORT="$OPTARG";;
+    f)  FROM="$OPTARG";;
+    t)  TO="$OPTARG";;
+    s)  SUBJECT="$OPTARG";;
+    :)  error_exit "Option -$OPTARG requires an argument." true;;
+    \?) error_exit "Invalid option: -$OPTARG" true;;
   esac
 done
 
