@@ -45,13 +45,12 @@ error_exit() {
 
 # Adds brackets around the last word in the given address, trims whitespace:
 normalize_address() {
-  unset IFS
-  if [ "${1%>}" = "$1" ]; then
-    # shellcheck disable=SC2086
-    echo $1 | sed 's/[^ ]*$/<&>/'
+  local address
+  address=$(echo "$1" | awk '{$1=$1};1')
+  if [ "${address%>}" = "$address" ]; then
+    echo "$address" | sed 's/[^ ]*$/<&>/'
   else
-    # shellcheck disable=SC2086
-    echo $1
+    echo "$address"
   fi
 }
 
@@ -64,16 +63,27 @@ validate_address() {
   fi
 }
 
+is_printable_ascii() {
+  (LC_CTYPE=C; case "$1" in *[![:print:]]*) return 1;; esac)
+}
+
 # Encodes the given string according to RFC 1522:
 # https://tools.ietf.org/html/rfc1522
 rfc1342_encode() {
-  printf '=?utf-8?B?%s?=' "$(printf '%s' "$1" | base64)"
+  if is_printable_ascii "$1"; then
+    printf %s "$1"
+  else
+    printf '=?utf-8?B?%s?=' "$(printf %s "$1" | base64)"
+  fi
 }
 
 encode_address() {
-  unset IFS
-  if [ "<${1##*<}" != "$1" ]; then
-    echo "$(rfc1342_encode "${1%<*}") <${1##*<}"
+  local email="<${1##*<}"
+  if [ "$email" != "$1" ]; then
+    local name="${1%<*}"
+    # Remove any trailing space as we add it again in the next line:
+    name="${name% }"
+    echo "$(rfc1342_encode "$name") $email"
   else
     echo "$1"
   fi
