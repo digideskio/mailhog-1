@@ -6,6 +6,10 @@ FROM alpine:3.4
 
 MAINTAINER Sebastian Tschan <mail@blueimp.net>
 
+# Install ca-certificates, required for the "release message" feature:
+RUN apk --no-cache add \
+    ca-certificates
+
 # Install MailHog:
 RUN apk --no-cache add --virtual build-dependencies \
     go \
