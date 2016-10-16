@@ -123,6 +123,22 @@ parse_sender() {
   SENDER_HEADER="MAIL FROM: $email"
 }
 
+parse_text() {
+  local line
+  CONTENT_TRANSFER_ENCODING=7bit
+  TEXT=
+  while read -r line; do
+    [ "$line" = '.' ] && break
+    if ! is_printable_ascii "$line" || [ "${#line}" -gt 1000 ]; then
+      CONTENT_TRANSFER_ENCODING=base64
+    fi
+    TEXT="$TEXT$line$NEWLINE"
+  done
+  if [ "$CONTENT_TRANSFER_ENCODING" = base64 ]; then
+    TEXT="$(printf %s "$TEXT" | base64)"
+  fi
+}
+
 while getopts ':h:p:f:t:s:' OPT; do
   case "$OPT" in
     h)  HOST="$OPTARG";;
@@ -137,15 +153,9 @@ done
 
 parse_recipients
 parse_sender
+parse_text
 
 SUBJECT="$(rfc1342_encode "$SUBJECT")"
-
-TEXT=
-while read -r LINE; do
-  [ "$LINE" = '.' ] && break
-  TEXT="$TEXT$LINE$NEWLINE"
-done
-
 DATE=$(date '+%a, %d %b %Y %H:%M:%S %z')
 
 MAIL='HELO '"$HOSTNAME"'
@@ -154,6 +164,7 @@ MAIL='HELO '"$HOSTNAME"'
 DATA
 
 Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: '"$CONTENT_TRANSFER_ENCODING"'
 Date: '"$DATE"'
 From: '"$FROM"'
 To: '"$TO"'
