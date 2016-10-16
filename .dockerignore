@@ -1,6 +1,1 @@
-.dockerignore
-.git
-.gitignore
-srv
-docker-compose.yml
-README.md
+*
