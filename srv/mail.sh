@@ -111,7 +111,7 @@ parse_recipients() {
   # Remove the first commma and space from the address list:
   TO="$(echo "$output" | cut -c 3-)"
   # Remove leading blank line from the recipients list and add header prefixes:
-  RECIPIENTS_HEADERS="$(echo "$recipients" | sed '/./,$!d; s/^/RCPT TO: /')"
+  RECIPIENTS_HEADERS="$(echo "$recipients" | sed '/./,$!d; s/^/RCPT TO:/')"
 }
 
 parse_sender() {
@@ -120,7 +120,7 @@ parse_sender() {
   email="<${FROM##*<}"
   validate_email "$email"
   FROM="$(encode_address "$FROM")"
-  SENDER_HEADER="MAIL FROM: $email"
+  SENDER_HEADER="MAIL FROM:$email"
 }
 
 parse_text() {
