@@ -128,7 +128,6 @@ parse_text() {
   CONTENT_TRANSFER_ENCODING=7bit
   TEXT=
   while read -r line; do
-    [ "$line" = '.' ] && break
     if ! is_printable_ascii "$line" || [ "${#line}" -gt 1000 ]; then
       CONTENT_TRANSFER_ENCODING=base64
     fi
@@ -136,6 +135,10 @@ parse_text() {
   done
   if [ "$CONTENT_TRANSFER_ENCODING" = base64 ]; then
     TEXT="$(printf %s "$TEXT" | base64)"
+  else
+    # Prepend each period at the start of a line with another period,
+    # to follow RFC 5321 Section 4.5.2 Transparency guidelines:
+    TEXT="$(printf %s "$TEXT" | sed 's/^\./.&/g')"
   fi
 }
 
